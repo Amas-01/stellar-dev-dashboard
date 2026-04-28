@@ -27,14 +27,22 @@ import ContractABI from "./components/dashboard/ContractABI";
 import DEXExplorer from "./components/dashboard/DEXExplorer";
 import ExplorerEmbed from "./components/dashboard/ExplorerEmbed";
 import RealTimeLedger from "./components/dashboard/RealTimeLedger";
+import Analytics from "./components/dashboard/Analytics";
+import SystemHealth from "./components/dashboard/SystemHealth";
+import Settings from "./components/dashboard/Settings";
 import { AssetDiscovery } from "./components/assets";
 import { MultisigManager } from "./components/multisig";
+import AuditLog from "./components/dashboard/AuditLog";
+import { AnchorIntegration } from "./components/anchors";
+import AdvancedSearch from "./components/dashboard/AdvancedSearch";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useStore } from "./lib/store";
 import { useTranslation } from "./hooks/useTranslation";
 import { useResponsive } from "./hooks/useResponsive";
 import { initializeErrorReporting, addBreadcrumb } from "./lib/errorReporting";
+import { installSecurityEventListeners, trackSecurityEvent, SecurityEventType } from "./lib/securityEvents";
 import { TourLauncher } from "./components/tutorial";
+import SearchBar from "./components/layout/SearchBar";
 
 const ChartsTab = () => {
   const { t } = useTranslation();
@@ -81,10 +89,16 @@ const TABS = {
   charts: ChartsTab,
   assets: AssetDiscovery,
   multisig: MultisigManager,
+  analytics: Analytics,
+  systemHealth: SystemHealth,
+  settings: Settings,
+  audit: AuditLog,
+  anchors: AnchorIntegration,
+  search: AdvancedSearch,
 };
 
 function DashboardLayout() {
-  const { connectedAddress, activeTab, theme, isMobileMenuOpen, setMobileMenuOpen } = useStore();
+  const { connectedAddress, activeTab, theme, isMobileMenuOpen, setMobileMenuOpen, setActiveTab } = useStore();
   const { windowWidth, isMobile, isTablet } = useResponsive();
 
   useEffect(() => {
@@ -102,6 +116,7 @@ function DashboardLayout() {
     });
 
     addBreadcrumb('Application initialized', 'info', { theme, isMobile });
+    installSecurityEventListeners();
   }, [theme, isMobile]);
 
   // Close mobile menu when resizing to desktop
@@ -140,6 +155,10 @@ function DashboardLayout() {
   // Track tab changes
   useEffect(() => {
     addBreadcrumb(`Navigated to ${activeTab} tab`, 'navigation', { activeTab });
+    trackSecurityEvent(SecurityEventType.CONFIG_CHANGED, {
+      target: 'activeTab',
+      metadata: { activeTab },
+    });
   }, [activeTab]);
 
   const ActiveComponent = TABS[activeTab] || Overview;
@@ -187,6 +206,19 @@ function DashboardLayout() {
     window.location.reload();
   };
 
+  const handleSearchResult = (result) => {
+    if (!result) return;
+    if (result.type === "transaction" || result.type === "operation") {
+      setActiveTab("transactions");
+      return;
+    }
+    if (result.type === "account") {
+      setActiveTab("account");
+      return;
+    }
+    setActiveTab("overview");
+  };
+
   return (
     <ErrorBoundary onRetry={handleRetry} maxRetries={3}>
       <div
@@ -200,6 +232,9 @@ function DashboardLayout() {
         {isMobile && <MobileHeader />}
         <Sidebar isMobile={isMobile} />
         <main style={getMainStyles()}>
+          <div style={{ marginBottom: "12px" }}>
+            <SearchBar onSelectResult={handleSearchResult} />
+          </div>
           <div style={{ marginBottom: "16px" }}>
             <PriceTicker />
           </div>
