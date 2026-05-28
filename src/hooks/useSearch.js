@@ -36,19 +36,16 @@ export function useSearch() {
       label: `${item.type} ${item.id}`,
       meta: item.from || item.to || "",
     }));
-
     const account = connectedAddress
-      ? [
-          {
-            id: `acc-${connectedAddress}`,
-            type: "account",
-            hash: connectedAddress,
-            memo: "",
-            created_at: new Date().toISOString(),
-            label: `Account ${connectedAddress}`,
-            meta: "Connected Address",
-          },
-        ]
+      ? [{
+          id: `account-${connectedAddress}`,
+          type: "account",
+          hash: connectedAddress,
+          memo: "",
+          created_at: "",
+          label: connectedAddress,
+          meta: "Connected account",
+        }]
       : [];
 
     return [...account, ...tx, ...ops];
