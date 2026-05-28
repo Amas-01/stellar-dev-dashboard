@@ -23,6 +23,7 @@ export interface NetworkConfig {
   sorobanUrl?: string
   passphrase: string
   faucetUrl?: string
+  headers?: Record<string, string>
 }
 
 export const NETWORKS: Record<NetworkName, NetworkConfig> = {
@@ -57,10 +58,79 @@ export const NETWORKS: Record<NetworkName, NetworkConfig> = {
     horizonUrl: '',
     sorobanUrl: '',
     passphrase: '',
+    headers: {},
   },
 }
 
 const COINGECKO_XLM_PRICE_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd'
+const CUSTOM_NETWORK_HEADERS_KEY = 'stellar-custom-network-headers'
+
+function getSessionStorage(): Storage | null {
+  if (typeof window === 'undefined') return null
+  return window.sessionStorage || null
+}
+
+function normalizeHeaders(headers: Record<string, string> = {}): Record<string, string> {
+  return Object.entries(headers).reduce<Record<string, string>>((acc, [name, value]) => {
+    const trimmedName = String(name || '').trim()
+    const trimmedValue = String(value || '').trim()
+    if (trimmedName && trimmedValue) {
+      acc[trimmedName] = trimmedValue
+    }
+    return acc
+  }, {})
+}
+
+export function getCustomNetworkAuthHeaders(): Record<string, string> {
+  const storage = getSessionStorage()
+  if (!storage) return NETWORKS.custom.headers || {}
+
+  try {
+    const raw = storage.getItem(CUSTOM_NETWORK_HEADERS_KEY)
+    const headers = raw ? normalizeHeaders(JSON.parse(raw)) : {}
+    NETWORKS.custom.headers = headers
+    return headers
+  } catch {
+    return NETWORKS.custom.headers || {}
+  }
+}
+
+function saveCustomNetworkAuthHeaders(headers: Record<string, string>) {
+  const normalized = normalizeHeaders(headers)
+  NETWORKS.custom.headers = normalized
+
+  const storage = getSessionStorage()
+  if (!storage) return
+
+  if (Object.keys(normalized).length) {
+    storage.setItem(CUSTOM_NETWORK_HEADERS_KEY, JSON.stringify(normalized))
+  } else {
+    storage.removeItem(CUSTOM_NETWORK_HEADERS_KEY)
+  }
+}
+
+function getNetworkHeaders(network: NetworkName): Record<string, string> {
+  if (network === 'custom') return getCustomNetworkAuthHeaders()
+  return NETWORKS[network].headers || {}
+}
+
+function withNetworkHeaders(options: RequestInit = {}, network: NetworkName): RequestInit {
+  const headers = getNetworkHeaders(network)
+  if (!Object.keys(headers).length) return options
+
+  return {
+    ...options,
+    headers: {
+      ...(options.headers as Record<string, string> | undefined),
+      ...headers,
+    },
+  }
+}
+
+function getServerOptions(network: NetworkName) {
+  const headers = getNetworkHeaders(network)
+  return Object.keys(headers).length ? { headers } : undefined
+}
 
 // ─── Rate Limited Fetch Wrapper ───────────────────────────────────────────────
 
@@ -113,7 +183,9 @@ export function getNetworkDetails(network: NetworkName): NetworkConfig {
 }
 
 export function updateCustomNetworkConfig(config: Partial<NetworkConfig>) {
-  Object.assign(NETWORKS.custom, config)
+  const { headers, ...networkConfig } = config
+  Object.assign(NETWORKS.custom, networkConfig)
+  if (headers) saveCustomNetworkAuthHeaders(headers)
 }
 
 /**
@@ -147,7 +219,10 @@ export async function loadCustomNetworkProfiles() {
 
 export function getServer(network: NetworkName = 'testnet'): StellarSdk.Horizon.Server {
   const config = NETWORKS[network]
-  return new StellarSdk.Horizon.Server(config.horizonUrl || NETWORKS.testnet.horizonUrl)
+  return new StellarSdk.Horizon.Server(
+    config.horizonUrl || NETWORKS.testnet.horizonUrl,
+    getServerOptions(network),
+  )
 }
 
 export function getSorobanServer(network: NetworkName = 'testnet'): StellarSdk.SorobanRpc.Server {
@@ -155,7 +230,10 @@ export function getSorobanServer(network: NetworkName = 'testnet'): StellarSdk.S
   if (network === 'custom' && !config.sorobanUrl) {
     throw new Error('Custom Soroban RPC URL not configured')
   }
-  return new StellarSdk.SorobanRpc.Server(config.sorobanUrl || NETWORKS.testnet.sorobanUrl!)
+  return new StellarSdk.SorobanRpc.Server(
+    config.sorobanUrl || NETWORKS.testnet.sorobanUrl!,
+    getServerOptions(network),
+  )
 }
 
 // ─── Account ──────────────────────────────────────────────────────────────────
@@ -448,7 +526,10 @@ export async function fetchAssetPrice(
     buying_asset_type: 'native',
   })
 
-  const response = await fetch(`${NETWORKS[network].horizonUrl}/order_book?${params.toString()}`)
+  const response = await fetch(
+    `${NETWORKS[network].horizonUrl}/order_book?${params.toString()}`,
+    withNetworkHeaders({}, network),
+  )
 
   if (!response.ok) {
     throw new Error(`Order book request failed: ${response.status}`)
@@ -857,6 +938,14 @@ export async function buildTransaction(
           startingBalance: op.startingBalance,
         })
       )
+    } else if (op.type === 'invokeHostFunction') {
+      // Simplified support for invocation for simulation purposes
+      txBuilder.addOperation(
+        StellarSdk.Operation.invokeHostFunction({
+          func: (op as any).func,
+          auth: (op as any).auth || [],
+        })
+      )
     }
   })
 
@@ -875,6 +964,14 @@ export interface SimulateResult {
   success: boolean
   errors: string[]
   xdr?: string
+  sorobanMetrics?: {
+    footprint: {
+      readOnly: SerializedLedgerKey[]
+      readWrite: SerializedLedgerKey[]
+    }
+    resourceFee: string
+    events?: SerializedContractEvent[]
+  }
 }
 
 export async function simulateTransaction(
@@ -907,6 +1004,36 @@ export async function simulateTransaction(
     })
 
     const estimatedFee = params.baseFee * params.operations.length
+    
+    // Check if we should perform Soroban simulation
+    const hasSorobanOps = params.operations.some(op => op.type as string === 'invokeHostFunction')
+    let sorobanMetrics = undefined
+
+    if (hasSorobanOps || params.network !== 'mainnet') {
+      try {
+        const sorobanServer = getSorobanServer(params.network)
+        const simulation = await sorobanServer.simulateTransaction(transaction)
+        
+        if ('error' in simulation) {
+          errors.push(`Soroban simulation error: ${simulation.error}`)
+        } else {
+          const successfulSimulation = simulation as any
+          if (successfulSimulation.transactionData) {
+             sorobanMetrics = {
+               footprint: {
+                 readOnly: successfulSimulation.transactionData.getReadOnly().map(serializeLedgerKey),
+                 readWrite: successfulSimulation.transactionData.getReadWrite().map(serializeLedgerKey),
+               },
+               resourceFee: successfulSimulation.minResourceFee,
+               events: (successfulSimulation.events || []).map(serializeDiagnosticEvent)
+             }
+          }
+        }
+      } catch (e) {
+        // Fallback or ignore if Soroban simulation fails but we want basic results
+        console.warn('Soroban simulation failed:', e)
+      }
+    }
 
     return {
       fee: estimatedFee,
@@ -914,6 +1041,7 @@ export async function simulateTransaction(
       success: errors.length === 0,
       errors,
       xdr: transaction.toXDR(),
+      sorobanMetrics
     }
   } catch (error) {
     return {
@@ -1018,6 +1146,13 @@ export function buildExecutionTrace(
         ? 'Simulation succeeded with no blocking errors.'
         : simulation.errors.join('; '),
     },
+    {
+      step: 'Soroban Resource Preview',
+      status: simulation.sorobanMetrics ? 'ok' : 'warning',
+      detail: simulation.sorobanMetrics 
+        ? `Footprint: ${simulation.sorobanMetrics.footprint.readOnly.length} RO, ${simulation.sorobanMetrics.footprint.readWrite.length} RW keys. Min fee: ${simulation.sorobanMetrics.resourceFee} stroops.`
+        : 'Soroban metrics not available for this transaction.',
+    }
   ]
 
   return steps
@@ -1743,7 +1878,7 @@ export async function fetchPaymentPaths(
     url = `${horizonUrl}/paths/strict-receive?${assetParams(destAsset, 'destination')}&destination_amount=${amount}&source_assets=${encodeURIComponent(assetString(sourceAsset))}`
   }
 
-  const res = await fetch(url)
+  const res = await fetch(url, withNetworkHeaders({}, network))
   if (!res.ok) throw new Error(`Horizon error: ${res.status}`)
   const data = await res.json() as { _embedded?: { records: PaymentPathRecord[] } }
   return data._embedded?.records ?? []

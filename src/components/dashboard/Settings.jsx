@@ -40,6 +40,8 @@ function ErrorMessage({ message }) {
 }
 
 export default function Settings() {
+  const initialCustomHeaders = getCustomNetworkAuthHeaders();
+  const initialHeaderName = Object.keys(initialCustomHeaders)[0] || "Authorization";
   const { network, setNetwork, theme, toggleTheme } = useStore();
   const {
     profiles,
@@ -168,6 +170,14 @@ export default function Settings() {
     } catch (err) {
       setValidationErrors({ switch: err.message });
     }
+  }
+
+  function updateCustomHeader(name, value) {
+    setCustomHeaderName(name);
+    setCustomHeaderValue(value);
+    updateCustomNetworkConfig({
+      headers: name.trim() && value.trim() ? { [name.trim()]: value.trim() } : {},
+    });
   }
 
   return (

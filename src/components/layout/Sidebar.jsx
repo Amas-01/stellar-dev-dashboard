@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { useStore } from '../../lib/store'
 import CopyableValue from '../dashboard/CopyableValue'
 import { NETWORKS, updateCustomNetworkConfig, switchToCustomProfile, loadCustomNetworkProfiles } from '../../lib/stellar'
 import { getActiveProfile } from '../../lib/userPreferences'
 
 const NAV_ITEMS = [
+  { type: 'header', label: 'ANALYTICS' },
   { id: 'overview', label: 'Overview', icon: '◈' },
   { id: 'account', label: 'Account', icon: '◉' },
   { id: 'compare', label: 'Compare', icon: '◫' },
@@ -13,12 +14,20 @@ const NAV_ITEMS = [
   { id: 'assets', label: 'Assets', icon: '💎' },
   { id: 'anchors', label: 'Anchors', icon: '⚓' },
   { id: 'search', label: 'Search', icon: '🔍' },
-  { id: 'network', label: 'Network', icon: '◎' },
+  
+  { type: 'header', label: 'NETWORK' },
+  { id: 'network', label: 'Network Info', icon: '◎' },
   { id: 'realtime', label: 'Real-Time', icon: '◉' },
   { id: 'liveActivity', label: 'Live Activity', icon: '⚡' },
   { id: 'cacheStats', label: 'Cache Stats', icon: '⊞' },
+  
+  { type: 'header', label: 'BUILD' },
   { id: 'builder', label: 'Builder', icon: '⚒' },
+  { id: 'txSimulator', label: 'Simulator', icon: '▷' },
+  { id: 'advancedSim', label: 'Advanced', icon: '⚡' },
   { id: 'faucet', label: 'Faucet', icon: '⬡' },
+  
+  { type: 'header', label: 'TOOLS' },
   { id: 'wallet', label: 'Wallet', icon: '⊡' },
   { id: 'signer', label: 'Signer', icon: '✎' },
   { id: 'multisig', label: 'Multisig', icon: '⊕' },
@@ -31,6 +40,10 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar({ isMobile = false }) {
+  const initialCustomHeaders = getCustomNetworkAuthHeaders()
+  const initialHeaderName = Object.keys(initialCustomHeaders)[0] || 'Authorization'
+  const [customHeaderName, setCustomHeaderName] = useState(initialHeaderName)
+  const [customHeaderValue, setCustomHeaderValue] = useState(initialCustomHeaders[initialHeaderName] || '')
   const { 
     activeTab, 
     setActiveTab, 
@@ -40,7 +53,7 @@ export default function Sidebar({ isMobile = false }) {
     theme, 
     toggleTheme,
     isMobileMenuOpen,
-    setMobileMenuOpen
+    setMobileMenuOpen,
   } = useStore()
 
   const [customProfiles, setCustomProfiles] = useState([])
@@ -69,7 +82,7 @@ export default function Sidebar({ isMobile = false }) {
 
   const handleNavClick = (tabId) => {
     setActiveTab(tabId)
-    setMobileMenuOpen(false) // Close mobile menu after navigation
+    setMobileMenuOpen(false)
   }
 
   const handleSwitchProfile = async (profileId) => {
@@ -98,8 +111,8 @@ export default function Sidebar({ isMobile = false }) {
     display: 'flex',
     flexDirection: 'column',
     position: 'fixed',
-    left: 0, 
-    top: 0, 
+    left: 0,
+    top: 0,
     bottom: 0,
     zIndex: 1000,
     transform: isMobile ? (isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)') : 'translateX(0)',
@@ -119,25 +132,26 @@ export default function Sidebar({ isMobile = false }) {
     outline: 'none',
   }
 
+  const updateCustomHeader = (name, value) => {
+    setCustomHeaderName(name)
+    setCustomHeaderValue(value)
+    updateCustomNetworkConfig({
+      headers: name.trim() && value.trim() ? { [name.trim()]: value.trim() } : {},
+    })
+  }
+
   return (
     <>
-      {/* Mobile menu overlay */}
       {isMobile && (
-        <div 
+        <div
           className={`mobile-menu-overlay ${isMobileMenuOpen ? 'open' : ''}`}
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
-      
+
       <aside style={sidebarStyles}>
-        {/* Mobile close button */}
         {isMobile && (
-          <div style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            zIndex: 1001,
-          }}>
+          <div style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 1001 }}>
             <button
               onClick={() => setMobileMenuOpen(false)}
               className="touch-target"
@@ -165,10 +179,7 @@ export default function Sidebar({ isMobile = false }) {
         )}
 
         {/* Logo */}
-        <div style={{
-          padding: '24px 20px 20px',
-          borderBottom: '1px solid var(--border)',
-        }}>
+        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid var(--border)' }}>
           <div style={{
             fontFamily: 'var(--font-display)',
             fontSize: '18px',
@@ -261,6 +272,19 @@ export default function Sidebar({ isMobile = false }) {
                 style={customInputStyle}
                 onChange={(e) => updateCustomNetworkConfig({ passphrase: e.target.value.trim() })}
               />
+              <input
+                placeholder="Auth Header Name"
+                value={customHeaderName}
+                style={customInputStyle}
+                onChange={(e) => updateCustomHeader(e.target.value, customHeaderValue)}
+              />
+              <input
+                placeholder="Auth Header Value (session only)"
+                type="password"
+                value={customHeaderValue}
+                style={customInputStyle}
+                onChange={(e) => updateCustomHeader(customHeaderName, e.target.value)}
+              />
             </div>
           )}
         </div>
@@ -268,6 +292,21 @@ export default function Sidebar({ isMobile = false }) {
         {/* Nav */}
         <nav style={{ flex: 1, padding: '12px 10px', overflowY: 'auto' }}>
           {NAV_ITEMS.map((item, i) => {
+            if (item.type === 'header') {
+              return (
+                <div key={`header-${i}`} style={{
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  padding: '16px 16px 8px',
+                  letterSpacing: '1.2px',
+                  textTransform: 'uppercase',
+                  opacity: 0.8
+                }}>
+                  {item.label}
+                </div>
+              )
+            }
             const isActive = activeTab === item.id
             const isDisabled = item.id === 'faucet' && network === 'mainnet'
             return (
@@ -281,8 +320,8 @@ export default function Sidebar({ isMobile = false }) {
                   alignItems: 'center',
                   gap: '10px',
                   width: '100%',
-                  padding: '12px 16px',
-                  marginBottom: '2px',
+                  padding: '10px 16px',
+                  marginBottom: '1px',
                   background: isActive ? 'var(--cyan-glow)' : 'transparent',
                   border: `1px solid ${isActive ? 'var(--cyan-dim)' : 'transparent'}`,
                   borderRadius: 'var(--radius-md)',
@@ -308,7 +347,7 @@ export default function Sidebar({ isMobile = false }) {
                   }
                 }}
               >
-                <span style={{ fontSize: '16px', opacity: 0.9 }}>{item.icon}</span>
+                <span style={{ fontSize: '15px', opacity: 0.9 }}>{item.icon}</span>
                 {item.label}
                 {isActive && (
                   <span style={{

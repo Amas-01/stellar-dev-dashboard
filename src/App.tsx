@@ -25,6 +25,8 @@ import AdvancedChartSuite from './components/charts/AdvancedChartSuite'
 import TransactionBuilder from './components/dashboard/TransactionBuilder'
 import ContractInteraction from './components/dashboard/ContractInteraction'
 import ContractABI from './components/dashboard/ContractABI'
+import AdvancedTransactionSimulation from './components/dashboard/AdvancedTransactionSimulation'
+import TransactionSimulator from './components/dashboard/TransactionSimulator'
 import DEXExplorer from './components/dashboard/DEXExplorer'
 import ExplorerEmbed from './components/dashboard/ExplorerEmbed'
 import RealTimeLedger from './components/dashboard/RealTimeLedger'
@@ -53,6 +55,7 @@ import {
 } from './lib/securityEvents'
 import { TourLauncher } from './components/tutorial'
 import SearchBar from './components/layout/SearchBar'
+import GlobalSearch from './components/search/GlobalSearch'
 import UserPreferences from './components/preferences/UserPreferences'
 import MobileNavigation from './components/layout/MobileNavigation'
 import KeyboardNavigation from './components/accessibility/KeyboardNavigation'
@@ -116,6 +119,8 @@ const TABS: Record<string, TabComponent> = {
   search: AdvancedSearch,
   cacheStats: CacheStats,
   liveActivity: LiveActivityFeed,
+  txSimulator: TransactionSimulator,
+  advancedSim: AdvancedTransactionSimulation,
 }
 
 function NotificationBell({ onClick }: { onClick: () => void }) {
@@ -294,6 +299,10 @@ function DashboardLayout() {
       setActiveTab('account')
       return
     }
+    if (result.type === 'contract') {
+      setActiveTab('contracts')
+      return
+    }
     setActiveTab('overview')
   }
 
@@ -313,7 +322,7 @@ function DashboardLayout() {
           <KeyboardNavigation />
           <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ flex: 1 }}>
-              <SearchBar onSelectResult={handleSearchResult} />
+              <GlobalSearch onSelectResult={handleSearchResult} />
             </div>
             <button
               onClick={() => setPreferencesOpen(true)}
