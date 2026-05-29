@@ -1,9 +1,10 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSettings } from "../../hooks/useSettings";
 import { useStore } from "../../lib/store";
 import { getEnvironmentConfig } from "../../lib/config";
 import { saveAlertRule, getAlertRules, deleteAlertRule } from "../../lib/alertRulesDb"; // Import IndexedDB helpers
 import { ALERT_RULE_TYPE, ALERT_CHANNEL } from "../../lib/alerts"; // Import alert types
+import PluginRegistryView from "./PluginRegistryView";
 
 function FieldLabel({ children }) {
   return (
@@ -264,6 +265,8 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      <PluginRegistryView placement="settings" />
 
       {/* New section for Alert Rules */}
       <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "14px", display: "flex", flexDirection: "column", gap: "12px" }}>
