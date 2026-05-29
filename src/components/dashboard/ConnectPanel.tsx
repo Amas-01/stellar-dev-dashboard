@@ -1,4 +1,5 @@
 import React, { useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { announceToScreenReader } from '../../utils/accessibility'
 import { useStore } from '../../lib/store'
 import {
   isValidPublicKey,
@@ -82,6 +83,7 @@ export default function ConnectPanel() {
       setConnectedAddress(resolved.accountId)
       setAccountData(account)
       setActiveTab('overview')
+      announceToScreenReader('Connected to account ' + resolved.accountId.slice(0, 8) + '...')
 
       setTxLoading(true)
       setOpsLoading(true)

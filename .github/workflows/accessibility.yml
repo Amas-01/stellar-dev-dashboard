@@ -24,19 +24,15 @@ jobs:
 
       - run: npm ci
 
-      - name: Build app
-        run: npm run build
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
 
-      - name: Install axe-core for accessibility testing
-        run: npm install --save-dev @axe-core/react
+      - name: Run E2E accessibility tests
+        run: npm run test:e2e -- --project=chromium
 
-      - name: Run accessibility audit
-        run: |
-          npx pa11y-ci --config .pa11yci.json || echo "Accessibility issues found - check report"
-
-      - name: Upload accessibility report
+      - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: accessibility-report
-          path: accessibility-report/
+          name: playwright-report
+          path: playwright-report/

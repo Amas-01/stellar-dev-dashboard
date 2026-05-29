@@ -154,3 +154,21 @@ test: add validation tests for bumpSequence op
 | `bug` | Something is broken |
 | `enhancement` | New feature or improvement |
 | `documentation` | Docs-only change |
+
+---
+
+## Accessibility (WCAG) Checklist
+
+All pull requests that touch interactive UI components must satisfy the following checklist before merge:
+
+- [ ] All interactive elements reachable by Tab key
+- [ ] Focus indicator visible on all focusable elements
+- [ ] All buttons have accessible names (text or aria-label)
+- [ ] All form inputs have associated labels
+- [ ] Color contrast ratio >= 4.5:1 for normal text
+- [ ] No keyboard traps (except intentional modal focus traps)
+- [ ] Screen reader announces dynamic state changes (connect, errors, loading)
+- [ ] Icons used as buttons have aria-label, not just title
+- [ ] ARIA live regions present for async feedback
+- [ ] Page has a logical heading hierarchy (h1 → h2 → h3)
+
