@@ -1,6 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useStore } from "../../lib/store";
 import { OPERATION_TYPES, simulateTransaction, buildTransaction } from "../../lib/transactionBuilder";
+import { TRANSACTION_TEMPLATES } from "../../lib/transactionTemplates.js";
+import {
+  getCachedUserTransactionTemplates,
+  upsertUserTransactionTemplate,
+} from "../../lib/transactionTemplateVault.ts";
 import { Copy, Play, Download, AlertCircle, CheckCircle, ArrowDown, GripVertical, Trash2, Plus, Zap } from "lucide-react";
 
 function Panel({ title, subtitle, children }) {
@@ -116,36 +121,19 @@ function ActionButton({ label, onClick, disabled, tone = "primary" }) {
   );
 }
 
-// Operation templates for quick start
-const OPERATION_TEMPLATES = {
-  simplePayment: {
-    name: "Simple Payment",
-    description: "Send XLM to another account",
-    operations: [{ type: "payment", params: { destination: "", amount: "", assetType: "native" } }]
-  },
-  trustlineSetup: {
-    name: "Trustline Setup",
-    description: "Establish trust for a new asset",
-    operations: [{ type: "changeTrust", params: { assetCode: "", assetIssuer: "", limit: "" } }]
-  },
-  accountCreation: {
-    name: "Account Creation",
-    description: "Create and fund a new account",
-    operations: [{ type: "createAccount", params: { destination: "", startingBalance: "2" } }]
-  },
-  multiPayment: {
-    name: "Multi-Payment",
-    description: "Send to multiple recipients",
-    operations: [
-      { type: "payment", params: { destination: "", amount: "", assetType: "native" } },
-      { type: "payment", params: { destination: "", amount: "", assetType: "native" } },
-      { type: "payment", params: { destination: "", amount: "", assetType: "native" } }
-    ]
-  }
-};
+function getAllTransactionTemplates() {
+  const user = getCachedUserTransactionTemplates();
+  const byId = new Map();
+  [...user, ...TRANSACTION_TEMPLATES].forEach((t) => {
+    if (!t?.id) return;
+    byId.set(t.id, t);
+  });
+  return Array.from(byId.values());
+}
 
 export default function TransactionBuilder() {
-  const { connectedAddress, network } = useStore();
+  const { connectedAddress, network, selectedTemplateId, setSelectedTemplateId } = useStore();
+  const availableTemplates = useMemo(() => getAllTransactionTemplates(), [selectedTemplateId]);
 
   const [sourceAccount, setSourceAccount] = useState(connectedAddress || "");
   const [memo, setMemo] = useState("");
@@ -202,10 +190,23 @@ export default function TransactionBuilder() {
   }
   
   function loadTemplate(templateKey) {
-    const template = OPERATION_TEMPLATES[templateKey];
+    const template = availableTemplates.find((t) => t.id === templateKey);
     if (!template) return;
-    setOperations(template.operations.map(op => ({ ...op, id: Date.now() + Math.random() })));
+    setMemo(template.memo || "");
+    setMemoType(template.memoType || "text");
+    setOperations(
+      (template.operations || []).map((op) => ({
+        ...op,
+        id: Date.now() + Math.random(),
+      })),
+    );
   }
+
+  useEffect(() => {
+    if (!selectedTemplateId) return;
+    loadTemplate(selectedTemplateId);
+    setSelectedTemplateId(null);
+  }, [selectedTemplateId]);
   
   // Drag and drop handlers
   function handleDragStart(index) {
@@ -305,6 +306,30 @@ export default function TransactionBuilder() {
       alert("Transaction XDR copied to clipboard!");
     } catch (error) {
       alert(`Export failed: ${error.message}`);
+    }
+  }
+
+  async function handleSaveAsTemplate() {
+    const label = window.prompt("Template name (will be shown in command palette):", "My Template");
+    if (!label) return;
+
+    const passphrase = window.prompt("Password to encrypt and store templates (not saved):");
+    if (!passphrase) return;
+
+    const template = {
+      id: `user_tpl_${Date.now()}`,
+      label,
+      description: `Saved from Transaction Builder (${new Date().toLocaleString()})`,
+      operations: operations.map((op) => ({ type: op.type, params: op.params })),
+      memo,
+      memoType,
+    };
+
+    try {
+      await upsertUserTransactionTemplate(passphrase, template);
+      window.alert("Template saved (encrypted). You can export it from Contract Templates → Transaction Templates.");
+    } catch (error) {
+      window.alert(`Save failed: ${error.message}`);
     }
   }
 
@@ -563,10 +588,10 @@ export default function TransactionBuilder() {
       {/* Quick Templates */}
       <Panel title="Quick Start Templates" subtitle="Load pre-configured operation sequences">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
-          {Object.entries(OPERATION_TEMPLATES).map(([key, template]) => (
+          {availableTemplates.map((template) => (
             <button
-              key={key}
-              onClick={() => loadTemplate(key)}
+              key={template.id}
+              onClick={() => loadTemplate(template.id)}
               style={{
                 padding: "14px",
                 background: "var(--bg-elevated)",
@@ -581,7 +606,7 @@ export default function TransactionBuilder() {
             >
               <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>
                 <Zap size={14} style={{ display: "inline", marginRight: "6px", color: "var(--cyan)" }} />
-                {template.name}
+                {template.label || template.name || template.id}
               </div>
               <div style={{ fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.4 }}>
                 {template.description}
@@ -893,6 +918,29 @@ export default function TransactionBuilder() {
         >
           <Download size={16} />
           Export XDR
+        </button>
+
+        <button
+          onClick={handleSaveAsTemplate}
+          disabled={!operations?.length}
+          style={{
+            padding: "12px 20px",
+            background: "transparent",
+            color: operations?.length ? "var(--text-secondary)" : "var(--text-muted)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            fontFamily: "var(--font-mono)",
+            fontWeight: 700,
+            fontSize: "13px",
+            cursor: operations?.length ? "pointer" : "not-allowed",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            transition: "var(--transition)",
+          }}
+        >
+          <Zap size={16} />
+          Save as Template
         </button>
       </div>
 
