@@ -225,6 +225,7 @@ class AuditTrail {
     
     if (options.endDate) {
       const end = new Date(options.endDate);
+      end.setUTCHours(23, 59, 59, 999);
       filtered = filtered.filter(event => new Date(event.timestamp) <= end);
     }
     
