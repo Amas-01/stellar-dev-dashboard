@@ -223,6 +223,14 @@ Generate deep links to external block explorers (Stellar Expert, Steexp) for acc
 ### Charts & Analytics
 A combined view rendering three Recharts-based charts: NetworkMetricsChart, AccountActivityChart, and BalanceHistoryChart.
 
+### Alert Rules
+Custom alert rules engine that monitors account activity and delivers notifications. Create rules for:
+- **Balance Thresholds**: Alert when balances go above or below specified amounts
+- **Operation Types**: Monitor specific operation types (payments, trustlines, etc.)
+- **Counterparty Tracking**: Track transactions with specific addresses
+
+Rules are evaluated client-side with configurable frequencies (30s to 10min). Notifications are delivered in-app and optionally via browser notifications. All rules and notifications are persisted in IndexedDB per account.
+
 ---
 
 ## State Management
