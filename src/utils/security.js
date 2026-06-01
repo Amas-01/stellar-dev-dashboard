@@ -60,6 +60,40 @@ const DANGEROUS_HTML_CHARS = {
   '/': '&#x2F;',
 }
 
+const SECRET_KEY_PATTERN = /\bS[A-Z2-7]{55}\b/g
+const SENSITIVE_FIELD_REGEX = /(secret|secretkey|privatekey|seed|mnemonic|password|passphrase|token|apikey|authorization)/i
+const AUTH_TOKEN_PATTERN = /\b(Bearer|Token)\s+[A-Za-z0-9\-._~+/]+=*\b/gi
+
+export function redactSensitive(value, key) {
+  if (value == null) return value
+
+  if (typeof value === 'string') {
+    let redacted = value.replace(SECRET_KEY_PATTERN, '[REDACTED_SECRET_KEY]')
+    redacted = redacted.replace(AUTH_TOKEN_PATTERN, '$1 [REDACTED]')
+    if (key && SENSITIVE_FIELD_REGEX.test(key)) {
+      return '[REDACTED]'
+    }
+    return redacted
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSensitive(item))
+  }
+
+  if (typeof value === 'object') {
+    return Object.entries(value).reduce((acc, [childKey, childValue]) => {
+      if (SENSITIVE_FIELD_REGEX.test(childKey)) {
+        acc[childKey] = '[REDACTED]'
+      } else {
+        acc[childKey] = redactSensitive(childValue, childKey)
+      }
+      return acc
+    }, {})
+  }
+
+  return value
+}
+
 /**
  * Escape a string for safe insertion into HTML.
  * Use this on any user-supplied value rendered via dangerouslySetInnerHTML.
