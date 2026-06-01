@@ -1,15 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 export default defineConfig({
   plugins: [
     react(),
-    // Bundle analysis plugin (optional, install rollup-plugin-visualizer to enable)
-    // process.env.ANALYZE && visualizer({
-    //   open: false,
-    //   filename: 'dist/stats.html',
-    //   title: 'Bundle Analysis'
-    // }),
+    // Bundle analysis: run `ANALYZE=1 npm run build` to generate dist/stats.html
+    process.env.ANALYZE &&
+      visualizer({
+        open: false,
+        filename: 'dist/stats.html',
+        title: 'Stellar Dev Dashboard — Bundle Analysis',
+        gzipSize: true,
+        brotliSize: true,
+        template: 'treemap', // 'treemap' | 'sunburst' | 'network'
+      }),
     // Security headers plugin (#106): injects HTTP security headers in dev server
     {
       name: 'security-headers',
@@ -57,11 +62,18 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
-        // Manual chunks for common libraries
+        // Manual chunks — keep vendor code in stable, cacheable files.
+        // Chunk strategy:
+        //   stellar-sdk  — Stellar SDK + XDR (largest dep, changes rarely)
+        //   react-vendor — React core + router (stable, long cache TTL)
+        //   ui-vendor    — Recharts + Lucide icons (changes with design work)
+        //   i18n         — i18next runtime (only needed after first render)
+        // Everything else lands in the default index chunk.
         manualChunks: {
           'stellar-sdk': ['@stellar/stellar-sdk'],
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'ui-vendor': ['lucide-react', 'recharts'],
+          i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         },
       },
     },
