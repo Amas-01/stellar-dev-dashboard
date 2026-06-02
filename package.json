@@ -37,7 +37,8 @@
     "react-i18next": "^15.0.2",
     "react-router-dom": "^6.30.4",
     "recharts": "^2.12.7",
-    "zustand": "^4.5.4"
+    "zustand": "^4.5.4",
+    "idb": "^8.0.3"
   },
   "optionalDependencies": {
     "@ledgerhq/hw-transport-webusb": "^6.29.4",
