@@ -55,8 +55,6 @@ interface SearchResult {
   type?: string;
 }
 
-const TransactionDetail = lazy(() => import('../components/dashboard/TransactionDetail'));
-
 function TabLoadingFallback() {
   return (
     <div

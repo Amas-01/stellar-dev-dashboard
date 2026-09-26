@@ -272,6 +272,14 @@ export const ROUTES: AppRoute[] = [
     group: 'build',
     loader: defaultLoader(() => import('../components/dashboard/Faucet')),
   },
+  {
+    id: 'batchXdrImport',
+    path: '/batchXdrImport',
+    title: 'Batch XDR Import',
+    icon: '📦',
+    group: 'build',
+    loader: defaultLoader(() => import('../components/dashboard/BatchXdrImport')),
+  },
 
   // ── EXPLORE ────────────────────────────────────────────────────────────────
   {
