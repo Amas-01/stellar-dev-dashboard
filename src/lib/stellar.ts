@@ -6,7 +6,6 @@ import { getCircuitBreaker } from './errorHandling/CircuitBreaker';
 import { validateMemo } from './validation';
 import { requireAllowedEndpoint } from './endpointAllowlist';
 import { importBatchXdr, simulateBatchXdr, validateXdrForBroadcast, type BatchXdrImportResult, type BatchXdrImportOptions, type ValidationReportItem, type XdrImportItem } from './batchXdrImport'
-import { calculateOperationFeeAttribution, formatFeeAttribution, type FeeAttributionReport, type OperationFeeAttribution } from './feeAttribution'
 
 // ─── Cache setup ──────────────────────────────────────────────────────────────
 
@@ -3412,8 +3411,6 @@ export default {
   importBatchXdr,
   simulateBatchXdr,
   validateXdrForBroadcast,
-  calculateOperationFeeAttribution,
-  formatFeeAttribution,
   StellarSdk,
 };
 
