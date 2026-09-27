@@ -56,8 +56,6 @@ interface SearchResult {
   type?: string;
 }
 
-const TransactionDetail = lazy(() => import('../components/dashboard/TransactionDetail'));
-
 function TabLoadingFallback() {
   return (
     <div
@@ -536,7 +534,9 @@ export default function DashboardLayout() {
               <NotFound />
             ) : txHash ? (
               <Suspense fallback={<TabLoadingFallback />}>
-                <TransactionDetail txHash={txHash} onClose={() => navigate('/transactions')} />
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                  <p>Transaction detail view not available. <a href="/transactions" onClick={(e) => { e.preventDefault(); navigate('/transactions'); }}>View all transactions</a></p>
+                </div>
               </Suspense>
             ) : ActiveComponent ? (
               <RouteErrorBoundary
