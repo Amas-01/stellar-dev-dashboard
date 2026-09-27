@@ -477,7 +477,8 @@ export const ROUTES: AppRoute[] = [
     title: 'Anomaly Viz',
     icon: '◉',
     group: 'tools',
-    loader: defaultLoader(() => import('../components/dashboard/AnomalyVisualization')),
+    nav: false,
+    loader: defaultLoader(() => import('../components/dashboard/Overview')),
   },
   {
     id: 'systemHealth',
