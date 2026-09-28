@@ -9,12 +9,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts'
-async function fetchHistoricalPerformance(_server: unknown, _address: string, _balances: unknown, days = 30) {
-  return Array.from({ length: days }).map((_, i) => ({
-    date: new Date(Date.now() - (days - i) * 86400000).toISOString().split('T')[0],
-    totalValueUsd: 1000 + Math.random() * 200,
-  }))
-}
+import { Pause, Play, RefreshCw } from 'lucide-react'
+import { fetchHistoricalPerformance } from '../../lib/portfolioAnalytics'
+import { useReducedMotion } from '../../hooks/useReducedMotion'
+import { getAnimationProps } from '../../utils/reducedMotion'
 
 const BAR_COLORS = [CHART_COLORS.cyan, CHART_COLORS.amber, CHART_COLORS.green, CHART_COLORS.red, '#8884d8', '#82ca9d']
 const POLL_OPTIONS = [
@@ -29,6 +27,7 @@ const HISTORY_LIMIT = 30
 export default function BalanceHistoryChart() {
   const { accountData, connectedAddress, network, setAccountData } = useStore()
   const { isMobile } = useResponsive()
+  const animation = getAnimationProps(useReducedMotion())
   const [pollMs, setPollMs] = useState(15000)
   const [tickAt, setTickAt] = useState(null)
   const [pulse, setPulse] = useState(false)
@@ -180,7 +179,7 @@ export default function BalanceHistoryChart() {
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(value) => [formatXLMValue(value, 4), 'Balance']}
               />
-              <Bar dataKey="balance" name="Balance" radius={[0, 4, 4, 0]} barSize={isMobile ? 14 : 18}>
+              <Bar dataKey="balance" name="Balance" radius={[0, 4, 4, 0]} barSize={isMobile ? 14 : 18} {...animation}>
                 {balanceData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
                 ))}
