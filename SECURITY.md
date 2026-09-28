@@ -1,43 +1,33 @@
 # Security Policy
 
-## Federation and SEP endpoint trust
+## Supported Versions
 
-Federation and SEP endpoints discovered through `stellar.toml` are restricted
-to the originating home domain and configured trusted domains. See
-[`docs/security/endpoint-allowlist.md`](docs/security/endpoint-allowlist.md)
-for compatibility and migration guidance.
+Security fixes are applied to the latest release on the default branch. Older
+releases may not receive backports; please upgrade to the latest version before
+reporting an issue.
 
-## Overview
-This document outlines the security architecture and threat model for the `stellar-dev-dashboard`. Our security strategy focuses on frontend hardening, automated dependency management, and restrictive communication policies.
+## Reporting a Vulnerability
 
-## Threat Model Matrix
+Please do **not** open a public issue for security vulnerabilities. Instead,
+report them privately using GitHub's [private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)
+feature for this repository, or contact the maintainers directly.
 
-| Threat Vector | Description | Remediation Strategy | Automated Compliance |
-| :--- | :--- | :--- | :--- |
-| **Cross-Site Scripting (XSS)** | Injection of malicious scripts via user input or third-party dependencies. | Restrictive CSP (no `unsafe-inline`), nonce-based execution, and input sanitisation. | NPM Audit CI Gate, CSP Header Validation. |
-| **Dependency Vulnerabilities** | Exploitation of known vulnerabilities in project dependencies. | Daily automated audits and proactive dependency updates. | Dependabot, GitHub Actions (`dependency-check.yml`). |
-| **Data Exfiltration** | Unauthorised transmission of sensitive data to malicious endpoints. | Strict `connect-src` CSP directive limiting traffic to Stellar and CoinGecko APIs. | Nginx CSP Enforcement. |
-| **Clickjacking** | Embedding the dashboard in malicious frames to trick users. | `X-Frame-Options: SAMEORIGIN` and `frame-ancestors: 'none'` CSP directive. | Nginx Header Injection. |
-| **Insecure Connections** | Downgrade attacks or unencrypted data transmission. | Forced HTTPS via `upgrade-insecure-requests` CSP directive. | Nginx Configuration. |
+When reporting, please include:
 
-## Security Architecture Blueprint
+- A description of the vulnerability and its impact.
+- Steps to reproduce (proof of concept if possible).
+- Affected versions and environment details.
+- Any suggested remediation.
 
-### 1. Content Security Policy (CSP)
-We enforce a strict CSP through both Nginx and React-level meta tags. 
-- **Nonces**: Cryptographically strong nonces are generated for inline scripts and styles.
-- **Restrictions**: `'unsafe-inline'` is prohibited in production.
-- **Allowed Sources**: 
-  - Scripts/Styles: `'self'`
-  - API Connections/Wallets: `https://*.stellar.org`, `wss://*.stellar.org`, `https://*.sorobanrpc.com`, `https://api.coingecko.com`, `wss://*.walletconnect.com`, `https://*.walletconnect.com`, `https://*.walletconnect.org`, `https://albedo.link`, `https://*.albedo.link`
-  - Inline Scripts: Allowed via strict SHA-256 hash validation for the theme initialization script.
+We aim to acknowledge reports within a few business days and will keep you
+updated as we investigate and remediate.
 
-### Adding New Wallet or API Endpoints
-To add a new endpoint or wallet integration, update the `Content-Security-Policy` header in `nginx.conf` and the corresponding meta tag in `index.html`. Add the domains to `connect-src` (for APIs/WebSocket) or `frame-src` (for iframes).
+## Privileged Actions and Audit Export
 
-### 2. Automated Guardrails
-- **Dependabot**: Monitors `npm` and `github-actions` ecosystems daily for updates.
-- **CI Security Audit**: Every push and pull request triggers an `npm audit --audit-level=high` check. Failure to meet this threshold blocks the deployment pipeline.
-- **Intelligent Dependency Management (#602)**: In-app analysis engine (`src/lib/dependencyManagement.ts`) correlates vulnerability databases / npm audit data, produces risk-scored update recommendations, detects version conflicts, and exposes a dashboard tab (`Dependencies`) plus the Security Dashboard dependency panel.
+Privileged dashboard actions — including Mainnet writes and settings changes —
+are recorded in a tamper-evident audit log. The log is append-only and each
+entry is chained to the previous entry via a cryptographic hash so that any
+modification, reordering, or deletion of historical records is detectable.
 
 ## Reporting a Vulnerability
 If you discover a security vulnerability within this project, please send an e-mail to security@stellar-dev-dashboard.org. All security vulnerabilities will be promptly addressed.
