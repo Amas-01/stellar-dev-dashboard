@@ -276,6 +276,14 @@ export const ROUTES: AppRoute[] = [
     group: 'build',
     loader: defaultLoader(() => import('../components/dashboard/Faucet')),
   },
+  {
+    id: 'batchXdrImport',
+    path: '/batchXdrImport',
+    title: 'Batch XDR Import',
+    icon: '📦',
+    group: 'build',
+    loader: defaultLoader(() => import('../components/dashboard/BatchXdrImport')),
+  },
 
   // ── EXPLORE ────────────────────────────────────────────────────────────────
   {
@@ -318,6 +326,7 @@ export const ROUTES: AppRoute[] = [
     title: 'Explorer Links',
     icon: '⊞',
     group: 'explore',
+    nav: false,
     loader: defaultLoader(() => import('../components/dashboard/ExplorerEmbed')),
   },
 
@@ -339,6 +348,7 @@ export const ROUTES: AppRoute[] = [
     title: 'Wallet',
     icon: '⊡',
     group: 'tools',
+    nav: false,
     loader: defaultLoader(() => import('../components/dashboard/WalletConnect')),
   },
   {

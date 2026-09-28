@@ -5,6 +5,7 @@ import auditTrail from './auditTrail.js';
 import { getCircuitBreaker } from './errorHandling/CircuitBreaker';
 import { validateMemo } from './validation';
 import { requireAllowedEndpoint } from './endpointAllowlist';
+import { importBatchXdr, simulateBatchXdr, validateXdrForBroadcast, type BatchXdrImportResult, type BatchXdrImportOptions, type ValidationReportItem, type XdrImportItem } from './batchXdrImport'
 
 // ─── Cache setup ──────────────────────────────────────────────────────────────
 
@@ -3470,6 +3471,9 @@ export default {
   calculateAccountReserves,
   clearCache,
   getCacheStats,
+  importBatchXdr,
+  simulateBatchXdr,
+  validateXdrForBroadcast,
   StellarSdk,
 };
 
